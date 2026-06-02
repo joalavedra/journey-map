@@ -1,0 +1,2334 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Journey — a journal map</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Inter:wght@400;500;600&family=Caveat:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+
+    <style>
+      :root {
+        --bg: #fcfcfb;
+        --panel: #ffffff;
+        --text: #1a1a1a;
+        --muted: #6b6b6b;
+        --faint: #a3a3a3;
+        --line: #ececea;
+        --line-strong: #dcdcd8;
+        --ink: #1a1a1a;
+        --radius: 6px;
+        --shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Inter", system-ui, sans-serif;
+        font-size: 14px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      ::selection {
+        background: #e9e6dd;
+      }
+
+      /* ---------- top bar ---------- */
+      header {
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+        padding: 16px 22px;
+        border-bottom: 1px solid var(--line);
+        flex-wrap: wrap;
+      }
+
+      .brand {
+        font-family: "Newsreader", serif;
+        font-size: 20px;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+      }
+
+      .brand em {
+        color: var(--muted);
+        font-style: italic;
+        font-weight: 400;
+      }
+
+      .spacer {
+        flex: 1;
+      }
+
+      .control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+
+      select,
+      button.ghost {
+        appearance: none;
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius);
+        padding: 6px 28px 6px 10px;
+        font: inherit;
+        font-size: 12.5px;
+        cursor: pointer;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M2 3.5L5 6.5L8 3.5' stroke='%236b6b6b' fill='none' stroke-width='1.2'/></svg>");
+        background-repeat: no-repeat;
+        background-position: right 9px center;
+      }
+
+      button.ghost {
+        padding: 6px 12px;
+        background-image: none;
+      }
+
+      button.ghost:hover,
+      select:hover {
+        border-color: #c2c2bc;
+      }
+
+      /* search trigger */
+      .search-trigger {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--panel);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius);
+        color: var(--muted);
+        font: inherit;
+        font-size: 12.5px;
+        padding: 6px 8px 6px 10px;
+        cursor: pointer;
+        min-width: 190px;
+      }
+
+      .search-trigger:hover {
+        border-color: #c2c2bc;
+      }
+
+      .search-trigger svg {
+        opacity: 0.6;
+      }
+
+      .search-trigger .st-label {
+        flex: 1;
+        text-align: left;
+      }
+
+      kbd {
+        font-family: "Inter", sans-serif;
+        font-size: 11px;
+        color: var(--muted);
+        background: #f2f2ef;
+        border: 1px solid var(--line-strong);
+        border-radius: 4px;
+        padding: 1px 5px;
+        line-height: 1.4;
+      }
+
+      /* ---------- main split ---------- */
+      main {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+      }
+
+      #map {
+        flex: 1;
+        background: #eee;
+        z-index: 1;
+      }
+
+      aside {
+        width: 340px;
+        flex-shrink: 0;
+        border-left: 1px solid var(--line);
+        background: var(--bg);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      .aside-head {
+        padding: 16px 18px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .route-titlebar {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .aside-head h2 {
+        margin: 0;
+        flex: 1;
+        font-family: "Newsreader", serif;
+        font-weight: 500;
+        font-size: 18px;
+        letter-spacing: -0.01em;
+        line-height: 1.25;
+      }
+
+      #route-desc {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 12.5px;
+        line-height: 1.5;
+      }
+
+      [contenteditable] {
+        outline: none;
+        border-radius: 4px;
+      }
+
+      [contenteditable]:focus {
+        box-shadow: 0 0 0 2px #ececea;
+      }
+
+      [contenteditable][data-ph]:empty:before {
+        content: attr(data-ph);
+        color: var(--faint);
+        font-style: italic;
+      }
+
+      .aside-head p {
+        margin: 8px 0 0;
+        color: var(--faint);
+        font-size: 11.5px;
+        letter-spacing: 0.01em;
+      }
+
+      button.ghost.sm {
+        padding: 4px 9px;
+        font-size: 11.5px;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      button.ghost.sm:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+
+      .spots {
+        overflow-y: auto;
+        padding: 10px;
+        flex: 1;
+      }
+
+      .empty {
+        color: var(--faint);
+        font-size: 12.5px;
+        text-align: center;
+        padding: 48px 24px;
+        line-height: 1.7;
+      }
+
+      /* ---------- spot card ---------- */
+      .card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        margin-bottom: 10px;
+        background: var(--panel);
+        overflow: hidden;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+
+      .card.active {
+        border-color: #cfcfca;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+      }
+
+      .card-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        cursor: pointer;
+      }
+
+      .grip {
+        flex-shrink: 0;
+        color: var(--faint);
+        font-size: 14px;
+        line-height: 1;
+        cursor: grab;
+        letter-spacing: -2px;
+        user-select: none;
+      }
+
+      .card.dragging {
+        opacity: 0.45;
+      }
+
+      .card.drag-above {
+        box-shadow: inset 0 2px 0 0 var(--ink);
+      }
+
+      .card.drag-below {
+        box-shadow: inset 0 -2px 0 0 var(--ink);
+      }
+
+      .num {
+        flex-shrink: 0;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--ink);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 500;
+        display: grid;
+        place-items: center;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .card-title {
+        flex: 1;
+        font-size: 13.5px;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .card-title.placeholder {
+        color: var(--faint);
+      }
+
+      .del {
+        flex-shrink: 0;
+        background: none;
+        border: none;
+        color: var(--faint);
+        cursor: pointer;
+        font-size: 15px;
+        line-height: 1;
+        padding: 2px 4px;
+      }
+
+      .del:hover {
+        color: #b4541f;
+      }
+
+      .card-body {
+        padding: 0 12px 12px;
+        display: none;
+      }
+
+      .card.open .card-body {
+        display: block;
+      }
+
+      .field-label {
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--faint);
+        margin: 8px 0 5px;
+      }
+
+      input.title-input,
+      textarea {
+        width: 100%;
+        background: #fafaf9;
+        border: 1px solid var(--line-strong);
+        border-radius: 5px;
+        color: var(--text);
+        font: inherit;
+        padding: 7px 9px;
+        resize: vertical;
+      }
+
+      input.title-input:focus,
+      textarea:focus {
+        outline: none;
+        border-color: #b3b3ac;
+        background: #fff;
+      }
+
+      textarea {
+        min-height: 60px;
+        font-size: 12.5px;
+        line-height: 1.55;
+      }
+
+      .photo {
+        width: 100%;
+        border-radius: 5px;
+        display: block;
+        margin-top: 4px;
+        border: 1px solid var(--line);
+      }
+
+      .photo-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 6px;
+      }
+
+      label.upload {
+        flex: 1;
+        text-align: center;
+        border: 1px dashed var(--line-strong);
+        border-radius: 5px;
+        padding: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      label.upload:hover {
+        border-color: #b3b3ac;
+        color: var(--text);
+      }
+
+      label.upload input {
+        display: none;
+      }
+
+      .photo-remove {
+        background: none;
+        border: 1px solid var(--line-strong);
+        border-radius: 5px;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 12px;
+        padding: 0 10px;
+      }
+
+      .photo-remove:hover {
+        color: #b4541f;
+        border-color: #e0c4b4;
+      }
+
+      /* ---------- leaflet overrides ---------- */
+      .leaflet-container {
+        font-family: "Inter", sans-serif;
+        background: #e9e9e7;
+      }
+
+      .marker-pin {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: var(--ink);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 500;
+        display: grid;
+        place-items: center;
+        border: 2px solid #fff;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+        font-variant-numeric: tabular-nums;
+        transition: transform 0.12s;
+      }
+
+      .marker-pin.active {
+        background: #fff;
+        color: var(--ink);
+        border-color: var(--ink);
+        transform: scale(1.14);
+      }
+
+      /* photo thumbnail markers — keep the map looking populated */
+      .marker-photo {
+        position: relative;
+        width: 66px;
+        height: 66px;
+        border-radius: 11px;
+        border: 2.5px solid #fff;
+        box-shadow: 0 2px 9px rgba(0, 0, 0, 0.3);
+        background: #fff;
+        transition: transform 0.12s;
+      }
+
+      .marker-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 7px;
+        display: block;
+      }
+
+      .marker-photo .marker-badge {
+        position: absolute;
+        top: -8px;
+        left: -8px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--ink);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 500;
+        display: grid;
+        place-items: center;
+        border: 2px solid #fff;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .marker-photo.active {
+        transform: scale(1.12);
+        box-shadow: 0 0 0 2px var(--ink), 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      /* hide chrome + live markers/route while exporting (we redraw them) */
+      .capturing .leaflet-control-container,
+      .capturing .leaflet-marker-pane,
+      .capturing .leaflet-overlay-pane,
+      .capturing .leaflet-popup-pane,
+      .capturing .hint {
+        display: none !important;
+      }
+
+      .leaflet-popup-content-wrapper {
+        background: #fff;
+        color: var(--text);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+      }
+
+      .leaflet-popup-tip {
+        background: #fff;
+      }
+
+      .leaflet-popup-content {
+        margin: 12px 14px;
+        width: 200px !important;
+        font-size: 13px;
+      }
+
+      .pop-title {
+        font-family: "Newsreader", serif;
+        font-size: 15px;
+        margin-bottom: 6px;
+      }
+
+      .pop-title.placeholder {
+        color: var(--faint);
+        font-style: italic;
+      }
+
+      .pop-photo {
+        width: 100%;
+        border-radius: 4px;
+        margin: 2px 0 6px;
+        display: block;
+      }
+
+      .pop-comment {
+        color: var(--muted);
+        font-size: 12.5px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+      }
+
+      .leaflet-control-attribution {
+        background: rgba(255, 255, 255, 0.8) !important;
+        color: var(--faint) !important;
+      }
+
+      .hint {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        padding: 7px 16px;
+        font-size: 12px;
+        color: var(--muted);
+        z-index: 500;
+        pointer-events: none;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        backdrop-filter: blur(6px);
+      }
+
+      .spots::-webkit-scrollbar {
+        width: 8px;
+      }
+      .spots::-webkit-scrollbar-thumb {
+        background: #e2e2df;
+        border-radius: 4px;
+      }
+
+      /* ---------- command palette (kmenu-style) ---------- */
+      .cmdk {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 14vh;
+      }
+
+      .cmdk[hidden] {
+        display: none;
+      }
+
+      .cmdk-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(20, 20, 20, 0.28);
+        backdrop-filter: blur(2px);
+        animation: fade 0.14s ease;
+      }
+
+      .cmdk-panel {
+        position: relative;
+        width: min(560px, 92vw);
+        background: var(--panel);
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        animation: pop 0.14s cubic-bezier(0.2, 0.7, 0.3, 1);
+      }
+
+      @keyframes fade {
+        from {
+          opacity: 0;
+        }
+      }
+      @keyframes pop {
+        from {
+          opacity: 0;
+          transform: translateY(-6px) scale(0.985);
+        }
+      }
+
+      .cmdk-input-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .cmdk-input-row svg {
+        opacity: 0.5;
+        flex-shrink: 0;
+      }
+
+      #cmdk-input {
+        flex: 1;
+        border: none;
+        background: none;
+        font: inherit;
+        font-size: 15.5px;
+        color: var(--text);
+      }
+
+      #cmdk-input:focus {
+        outline: none;
+      }
+
+      #cmdk-input::placeholder {
+        color: var(--faint);
+      }
+
+      .cmdk-list {
+        max-height: 56vh;
+        overflow-y: auto;
+        padding: 6px;
+      }
+
+      .cmdk-group-label {
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--faint);
+        padding: 10px 12px 4px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .cmdk-spin {
+        width: 10px;
+        height: 10px;
+        border: 1.5px solid var(--line-strong);
+        border-top-color: var(--muted);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .cmdk-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 9px 12px;
+        border-radius: 7px;
+        cursor: pointer;
+        scroll-margin: 8px;
+      }
+
+      .cmdk-item[aria-selected="true"] {
+        background: #f4f4f1;
+      }
+
+      .cmdk-ic {
+        flex-shrink: 0;
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        display: grid;
+        place-items: center;
+        background: #f2f2ef;
+        border: 1px solid var(--line);
+        font-size: 13px;
+      }
+
+      .cmdk-ic.num {
+        background: var(--ink);
+        color: #fff;
+        border: none;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .cmdk-text {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .cmdk-label {
+        font-size: 13.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .cmdk-sub {
+        font-size: 11.5px;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 1px;
+      }
+
+      .cmdk-enter {
+        opacity: 0;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .cmdk-item[aria-selected="true"] .cmdk-enter {
+        opacity: 1;
+      }
+
+      .cmdk-empty {
+        padding: 28px 16px;
+        text-align: center;
+        color: var(--faint);
+        font-size: 13px;
+      }
+
+      .cmdk-foot {
+        display: flex;
+        gap: 16px;
+        padding: 9px 14px;
+        border-top: 1px solid var(--line);
+        color: var(--faint);
+        font-size: 11.5px;
+      }
+
+      .cmdk-foot span {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      @media (max-width: 760px) {
+        main {
+          flex-direction: column;
+        }
+        aside {
+          width: 100%;
+          border-left: none;
+          border-top: 1px solid var(--line);
+          height: 45%;
+        }
+        #map {
+          height: 55%;
+        }
+        .search-trigger {
+          min-width: 0;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <div class="brand">Journey <em>— a journal map</em></div>
+      <div class="spacer"></div>
+
+      <button class="search-trigger" id="open-cmdk" aria-label="Open search (Command K)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.3" />
+          <path d="M9.5 9.5L12.5 12.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+        </svg>
+        <span class="st-label">Search…</span>
+        <kbd>⌘K</kbd>
+      </button>
+
+      <div class="control">
+        <span>City</span>
+        <select id="city"></select>
+      </div>
+      <button class="ghost" id="clear">Clear route</button>
+    </header>
+
+    <main>
+      <div id="map">
+        <div class="hint" id="hint">Click to drop a spot · drag to move · long-press to delete · ⌘K to search</div>
+      </div>
+      <aside>
+        <div class="aside-head">
+          <div class="route-titlebar">
+            <h2 id="route-title" contenteditable="true" spellcheck="false" data-ph="Untitled journey"></h2>
+            <button class="ghost sm" id="save-img" title="Save the map as an image" disabled>
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1.5V9M7 9L4 6M7 9L10 6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M2 9.5V11.5C2 12 2.4 12.5 3 12.5H11C11.6 12.5 12 12 12 11.5V9.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+              </svg>
+              Save image
+            </button>
+          </div>
+          <div id="route-desc" contenteditable="true" spellcheck="false" data-ph="Add a description…"></div>
+          <p id="route-meta">No spots yet</p>
+        </div>
+        <div class="spots" id="spots"></div>
+      </aside>
+    </main>
+
+    <!-- command palette -->
+    <div class="cmdk" id="cmdk" hidden>
+      <div class="cmdk-backdrop" data-close></div>
+      <div class="cmdk-panel" role="dialog" aria-modal="true" aria-label="Search">
+        <div class="cmdk-input-row">
+          <svg width="16" height="16" viewBox="0 0 14 14" fill="none">
+            <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.3" />
+            <path d="M9.5 9.5L12.5 12.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+          </svg>
+          <input
+            id="cmdk-input"
+            placeholder="Search cities, landmarks, your spots…"
+            autocomplete="off"
+            spellcheck="false"
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="cmdk-list"
+          />
+          <kbd>esc</kbd>
+        </div>
+        <div class="cmdk-list" id="cmdk-list" role="listbox"></div>
+        <div class="cmdk-foot">
+          <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+          <span><kbd>↵</kbd> select</span>
+          <span><kbd>esc</kbd> close</span>
+        </div>
+      </div>
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <!-- html2canvas (pinned) for the "Save image" export; integrity omitted to avoid hash drift -->
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script>
+      const CITIES = {
+        barcelona: { name: "Barcelona", center: [41.3874, 2.1686], zoom: 13 },
+        paris: { name: "Paris", center: [48.8566, 2.3522], zoom: 13 },
+        london: { name: "London", center: [51.5074, -0.1278], zoom: 12 },
+        rome: { name: "Rome", center: [41.9028, 12.4964], zoom: 13 },
+        lisbon: { name: "Lisbon", center: [38.7223, -9.1393], zoom: 13 },
+        amsterdam: { name: "Amsterdam", center: [52.3676, 4.9041], zoom: 13 },
+        newyork: { name: "New York", center: [40.7128, -74.006], zoom: 12 },
+        tokyo: { name: "Tokyo", center: [35.6762, 139.6503], zoom: 12 },
+        kyoto: { name: "Kyoto", center: [35.0116, 135.7681], zoom: 13 },
+        istanbul: { name: "Istanbul", center: [41.0082, 28.9784], zoom: 12 },
+        mexicocity: { name: "Mexico City", center: [19.4326, -99.1332], zoom: 12 },
+        marrakech: { name: "Marrakech", center: [31.6295, -7.9811], zoom: 13 },
+      };
+
+      const STORE_KEY = "journey-map-v1";
+
+      let state = loadState();
+      let activeId = null;
+      let dragId = null;
+      const markers = new Map();
+      let routeStraight = null; // instant dashed fallback
+      let routeWalk = null; // fetched walking path
+      let walkMeta = ""; // "1.4 km · 18 min walk"
+      let walkSeq = 0;
+      let walkTimer = null;
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORE_KEY);
+          if (raw) {
+            const s = JSON.parse(raw);
+            s.title = s.title || "";
+            s.desc = s.desc || "";
+            return s;
+          }
+        } catch (e) {}
+        return { city: "barcelona", title: "", desc: "", spots: [] };
+      }
+
+      function save() {
+        try {
+          localStorage.setItem(STORE_KEY, JSON.stringify(state));
+        } catch (e) {
+          console.warn("Could not save — storage may be full (large photos).", e);
+        }
+      }
+
+      function uid() {
+        return Math.random().toString(36).slice(2, 9);
+      }
+
+      // ----- map -----
+      const map = L.map("map", {
+        zoomControl: true,
+        attributionControl: true,
+        preferCanvas: true,
+      });
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        {
+          attribution:
+            '&copy; <a href="https://openstreetmap.org">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+          subdomains: "abcd",
+          maxZoom: 20,
+          crossOrigin: true,
+        }
+      ).addTo(map);
+
+      function goToCity(key, fly) {
+        const c = CITIES[key];
+        if (!c) return;
+        if (fly) map.flyTo(c.center, c.zoom, { duration: 0.8 });
+        else map.setView(c.center, c.zoom);
+      }
+
+      map.on("click", (e) => addSpot(e.latlng.lat, e.latlng.lng));
+
+      // ----- spots -----
+      function addSpot(lat, lng, title) {
+        const spot = {
+          id: uid(),
+          lat,
+          lng,
+          title: title || "",
+          comment: "",
+          photo: "",
+        };
+        state.spots.push(spot);
+        save();
+        render();
+        openSpot(spot.id, true);
+        return spot;
+      }
+
+      function deleteSpot(id) {
+        state.spots = state.spots.filter((s) => s.id !== id);
+        if (activeId === id) activeId = null;
+        save();
+        render();
+      }
+
+      function updateSpot(id, patch) {
+        const s = state.spots.find((x) => x.id === id);
+        if (!s) return;
+        Object.assign(s, patch);
+        save();
+      }
+
+      function openSpot(id, scroll) {
+        activeId = id;
+        render();
+        const card = document.querySelector(`[data-card="${id}"]`);
+        if (card && scroll) card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        const m = markers.get(id);
+        const s = state.spots.find((x) => x.id === id);
+        if (m && s) {
+          map.panTo([s.lat, s.lng], { animate: true });
+          m.openPopup();
+        }
+      }
+
+      // ----- render -----
+      function popupHTML(s, i) {
+        const title = s.title
+          ? `<div class="pop-title">${escapeHTML(s.title)}</div>`
+          : `<div class="pop-title placeholder">Spot ${i + 1}</div>`;
+        const photo = s.photo ? `<img class="pop-photo" src="${s.photo}" alt="" />` : "";
+        const comment = s.comment
+          ? `<div class="pop-comment">${escapeHTML(s.comment)}</div>`
+          : "";
+        return title + photo + comment;
+      }
+
+      function renderMarkers() {
+        for (const [id, m] of markers) {
+          if (!state.spots.find((s) => s.id === id)) {
+            map.removeLayer(m);
+            markers.delete(id);
+          }
+        }
+        state.spots.forEach((s, i) => {
+          let m = markers.get(s.id);
+          const active = s.id === activeId ? "active" : "";
+          const html = s.photo
+            ? `<div class="marker-photo ${active}"><img src="${s.photo}" alt="" /><span class="marker-badge">${i + 1}</span></div>`
+            : `<div class="marker-pin ${active}">${i + 1}</div>`;
+          const icon = L.divIcon({
+            className: "",
+            html,
+            iconSize: s.photo ? [66, 66] : [26, 26],
+            iconAnchor: s.photo ? [33, 33] : [13, 13],
+          });
+          if (!m) {
+            m = L.marker([s.lat, s.lng], { icon, draggable: true }).addTo(map);
+            m.on("click", () => {
+              if (m._wasDragged) return;
+              openSpot(s.id, true);
+            });
+            m.on("dragstart", () => clearLongPress(m));
+            m.on("dragend", () => {
+              const ll = m.getLatLng();
+              updateSpot(s.id, { lat: ll.lat, lng: ll.lng });
+              m._wasDragged = true;
+              setTimeout(() => {
+                m._wasDragged = false;
+              }, 0);
+              refreshRoute();
+            });
+            markers.set(s.id, m);
+          } else {
+            m.setLatLng([s.lat, s.lng]);
+            m.setIcon(icon);
+          }
+          m.bindPopup(popupHTML(s, i));
+          bindLongPress(m, s.id);
+        });
+      }
+
+      // long-press a marker (mouse or touch) to delete its spot
+      function clearLongPress(m) {
+        if (m._lpTimer) {
+          clearTimeout(m._lpTimer);
+          m._lpTimer = null;
+        }
+      }
+
+      function bindLongPress(m, id) {
+        const el = m.getElement();
+        if (!el || el._lpBound) return;
+        el._lpBound = true;
+        let sx = 0,
+          sy = 0;
+        el.addEventListener("pointerdown", (e) => {
+          sx = e.clientX;
+          sy = e.clientY;
+          clearLongPress(m);
+          m._lpTimer = setTimeout(() => {
+            m._lpTimer = null;
+            if (confirm("Delete this spot?")) deleteSpot(id);
+          }, 600);
+        });
+        el.addEventListener("pointermove", (e) => {
+          if (
+            m._lpTimer &&
+            (Math.abs(e.clientX - sx) > 8 || Math.abs(e.clientY - sy) > 8)
+          )
+            clearLongPress(m);
+        });
+        el.addEventListener("pointerup", () => clearLongPress(m));
+        el.addEventListener("pointercancel", () => clearLongPress(m));
+        el.addEventListener("pointerleave", () => clearLongPress(m));
+      }
+
+      // ----- route: walking path via OSRM foot (FOSSGIS), straight-line fallback -----
+      let lastRouteSig = null;
+
+      function refreshRoute() {
+        const pts = state.spots.map((s) => [s.lat, s.lng]);
+        const sig = pts.map((p) => p.join(",")).join("|");
+        if (sig === lastRouteSig) return; // geometry unchanged (e.g. just a selection)
+        lastRouteSig = sig;
+
+        if (routeStraight) {
+          map.removeLayer(routeStraight);
+          routeStraight = null;
+        }
+        if (pts.length < 2) {
+          if (routeWalk) {
+            map.removeLayer(routeWalk);
+            routeWalk = null;
+          }
+          walkMeta = "";
+          updateRouteMeta();
+          return;
+        }
+
+        // instant faint dashed line so the route reads immediately
+        routeStraight = L.polyline(pts, {
+          color: "#1a1a1a",
+          weight: 1.4,
+          opacity: 0.2,
+          dashArray: "3 7",
+        }).addTo(map);
+
+        scheduleWalkingRoute(pts);
+      }
+
+      function scheduleWalkingRoute(pts) {
+        if (walkTimer) clearTimeout(walkTimer);
+        walkTimer = setTimeout(() => fetchWalkingRoute(pts), 450);
+      }
+
+      function fetchWalkingRoute(pts) {
+        const seq = ++walkSeq;
+        const coords = pts.map(([la, ln]) => ln + "," + la).join(";");
+        const url =
+          "https://routing.openstreetmap.de/routed-foot/route/v1/driving/" +
+          coords +
+          "?overview=full&geometries=geojson";
+
+        fetch(url)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((data) => {
+            if (seq !== walkSeq) return; // stale
+            if (!data || data.code !== "Ok" || !data.routes || !data.routes.length)
+              return; // keep the straight fallback
+            const r = data.routes[0];
+            const line = r.geometry.coordinates.map(([ln, la]) => [la, ln]);
+            if (routeWalk) map.removeLayer(routeWalk);
+            routeWalk = L.polyline(line, {
+              color: "#1a1a1a",
+              weight: 3,
+              opacity: 0.65,
+              lineJoin: "round",
+              lineCap: "round",
+            }).addTo(map);
+            if (routeStraight) routeStraight.setStyle({ opacity: 0 });
+            walkMeta = formatDistance(r.distance) + " · " + formatDuration(r.duration) + " walk";
+            updateRouteMeta();
+          })
+          .catch(() => {
+            /* keep straight fallback */
+          });
+      }
+
+      function formatDistance(m) {
+        return m < 1000 ? Math.round(m) + " m" : (m / 1000).toFixed(1) + " km";
+      }
+
+      function formatDuration(s) {
+        const min = Math.round(s / 60);
+        if (min < 60) return min + " min";
+        const h = Math.floor(min / 60);
+        return h + " h " + (min % 60) + " min";
+      }
+
+      function updateRouteMeta() {
+        const meta = document.getElementById("route-meta");
+        const n = state.spots.length;
+        const count = n === 0 ? "No spots yet" : n + (n === 1 ? " spot" : " spots");
+        meta.textContent = walkMeta ? count + " · " + walkMeta : count;
+        document.getElementById("save-img").disabled = n === 0;
+      }
+
+      function renderList() {
+        const spotsEl = document.getElementById("spots");
+
+        if (state.spots.length === 0) {
+          spotsEl.innerHTML =
+            '<div class="empty">An empty itinerary.<br/>Click the map (or search ⌘K) to drop your first spot — then add a title, photo, and a note.</div>';
+          return;
+        }
+
+        spotsEl.innerHTML = "";
+        state.spots.forEach((s, i) => {
+          const card = document.createElement("div");
+          card.className = "card" + (s.id === activeId ? " active open" : "");
+          card.dataset.card = s.id;
+
+          const titleText = s.title
+            ? escapeHTML(s.title)
+            : '<span class="placeholder">Spot ' + (i + 1) + " · untitled</span>";
+
+          card.draggable = true;
+          card.innerHTML = `
+            <div class="card-head">
+              <div class="grip" title="Drag to reorder">⠿</div>
+              <div class="num">${i + 1}</div>
+              <div class="card-title ${s.title ? "" : "placeholder"}">${titleText}</div>
+              <button class="del" title="Delete spot">×</button>
+            </div>
+            <div class="card-body">
+              <div class="field-label">Title</div>
+              <input class="title-input" placeholder="Name this spot…" value="${escapeAttr(
+                s.title
+              )}" />
+              <div class="field-label">Photo</div>
+              ${s.photo ? `<img class="photo" src="${s.photo}" alt="" />` : ""}
+              <div class="photo-row">
+                <label class="upload">${s.photo ? "Replace photo" : "Add a photo"}
+                  <input type="file" accept="image/*" />
+                </label>
+                ${s.photo ? '<button class="photo-remove">Remove</button>' : ""}
+              </div>
+              <div class="field-label">Comment</div>
+              <textarea placeholder="What happened here?">${escapeHTML(s.comment)}</textarea>
+            </div>`;
+
+          card.querySelector(".card-head").addEventListener("click", (ev) => {
+            if (ev.target.classList.contains("del")) return;
+            openSpot(s.id, false);
+          });
+
+          card.querySelector(".del").addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            deleteSpot(s.id);
+          });
+
+          const titleInput = card.querySelector(".title-input");
+          titleInput.addEventListener("input", (e) => {
+            updateSpot(s.id, { title: e.target.value });
+            const m = markers.get(s.id);
+            if (m) m.setPopupContent(popupHTML({ ...s, title: e.target.value }, i));
+          });
+          titleInput.addEventListener("blur", () => renderList());
+
+          const ta = card.querySelector("textarea");
+          ta.addEventListener("input", (e) => {
+            updateSpot(s.id, { comment: e.target.value });
+            const m = markers.get(s.id);
+            if (m) m.setPopupContent(popupHTML({ ...s, comment: e.target.value }, i));
+          });
+
+          const file = card.querySelector('input[type="file"]');
+          file.addEventListener("change", (e) => {
+            const f = e.target.files[0];
+            if (!f) return;
+            readImage(f, (dataUrl) => {
+              updateSpot(s.id, { photo: dataUrl });
+              render();
+              openSpot(s.id, false);
+            });
+          });
+
+          const rm = card.querySelector(".photo-remove");
+          if (rm)
+            rm.addEventListener("click", () => {
+              updateSpot(s.id, { photo: "" });
+              render();
+              openSpot(s.id, false);
+            });
+
+          card.addEventListener("dragstart", (ev) => {
+            if (ev.target.closest("input, textarea, [contenteditable], button, label, .photo")) {
+              ev.preventDefault();
+              return;
+            }
+            dragId = s.id;
+            card.classList.add("dragging");
+            ev.dataTransfer.effectAllowed = "move";
+            ev.dataTransfer.setData("text/plain", s.id);
+          });
+          card.addEventListener("dragover", (ev) => {
+            if (!dragId || dragId === s.id) return;
+            ev.preventDefault();
+            ev.dataTransfer.dropEffect = "move";
+            const r = card.getBoundingClientRect();
+            const above = ev.clientY < r.top + r.height / 2;
+            card.classList.toggle("drag-above", above);
+            card.classList.toggle("drag-below", !above);
+          });
+          card.addEventListener("dragleave", () => {
+            card.classList.remove("drag-above", "drag-below");
+          });
+          card.addEventListener("drop", (ev) => {
+            ev.preventDefault();
+            const r = card.getBoundingClientRect();
+            const above = ev.clientY < r.top + r.height / 2;
+            card.classList.remove("drag-above", "drag-below");
+            reorderSpots(dragId, s.id, above);
+          });
+          card.addEventListener("dragend", () => {
+            card.classList.remove("dragging");
+            dragId = null;
+          });
+
+          spotsEl.appendChild(card);
+        });
+      }
+
+      // move a spot in the route order (sidebar drag-and-drop)
+      function reorderSpots(fromId, toId, before) {
+        if (!fromId || fromId === toId) return;
+        const from = state.spots.findIndex((x) => x.id === fromId);
+        if (from < 0) return;
+        const [moved] = state.spots.splice(from, 1);
+        let to = state.spots.findIndex((x) => x.id === toId);
+        if (to < 0) to = state.spots.length;
+        else if (!before) to += 1;
+        state.spots.splice(to, 0, moved);
+        save();
+        render();
+      }
+
+      function render() {
+        renderMarkers();
+        renderList();
+        refreshRoute();
+        updateRouteMeta();
+        syncHint();
+      }
+
+      function syncHint() {
+        const h = document.getElementById("hint");
+        if (h) h.style.display = state.spots.length ? "none" : "block";
+      }
+
+      // ----- images -----
+      function readImage(file, cb) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const max = 900;
+            let { width, height } = img;
+            if (width > max || height > max) {
+              const r = Math.min(max / width, max / height);
+              width = Math.round(width * r);
+              height = Math.round(height * r);
+            }
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+            cb(canvas.toDataURL("image/jpeg", 0.82));
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      // ----- utils -----
+      function escapeHTML(str) {
+        return (str || "").replace(/[&<>"']/g, (c) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        }[c]));
+      }
+      function escapeAttr(str) {
+        return escapeHTML(str);
+      }
+
+      // fuzzy: true if query is a subsequence of text, or a substring
+      function fuzzy(query, text) {
+        query = query.toLowerCase().trim();
+        text = (text || "").toLowerCase();
+        if (!query) return true;
+        if (text.includes(query)) return true;
+        let qi = 0;
+        for (let i = 0; i < text.length && qi < query.length; i++) {
+          if (text[i] === query[qi]) qi++;
+        }
+        return qi === query.length;
+      }
+
+      // ----- city selector -----
+      const citySel = document.getElementById("city");
+      Object.entries(CITIES).forEach(([key, c]) => {
+        const opt = document.createElement("option");
+        opt.value = key;
+        opt.textContent = c.name;
+        citySel.appendChild(opt);
+      });
+      citySel.value = CITIES[state.city] ? state.city : "barcelona";
+
+      function switchCity(key) {
+        if (key === state.city) {
+          goToCity(key, true);
+          return;
+        }
+        if (state.spots.length) {
+          const ok = confirm(
+            "Switching cities starts a new route. Your current spots will be cleared. Continue?"
+          );
+          if (!ok) {
+            citySel.value = state.city;
+            return;
+          }
+          state.spots = [];
+          activeId = null;
+        }
+        state.city = key;
+        citySel.value = key;
+        save();
+        render();
+        goToCity(key, true);
+      }
+
+      citySel.addEventListener("change", () => switchCity(citySel.value));
+
+      document.getElementById("clear").addEventListener("click", () => {
+        if (!state.spots.length) return;
+        if (!confirm("Clear all spots from this route?")) return;
+        state.spots = [];
+        activeId = null;
+        save();
+        render();
+      });
+
+      // ====================================================================
+      //  COMMAND PALETTE (kmenu-style, vanilla)
+      // ====================================================================
+      const cmdk = document.getElementById("cmdk");
+      const cmdkInput = document.getElementById("cmdk-input");
+      const cmdkList = document.getElementById("cmdk-list");
+
+      let cmdkOpen = false;
+      let cmdkItems = []; // flat selectable items in display order
+      let cmdkIndex = 0;
+      let landmarkResults = [];
+      let landmarkLoading = false;
+      let landmarkSeq = 0;
+      let landmarkTimer = null;
+
+      function openPalette() {
+        cmdkOpen = true;
+        cmdk.hidden = false;
+        cmdkInput.value = "";
+        landmarkResults = [];
+        landmarkLoading = false;
+        buildResults(false);
+        requestAnimationFrame(() => cmdkInput.focus());
+      }
+
+      function closePalette() {
+        cmdkOpen = false;
+        cmdk.hidden = true;
+        if (landmarkTimer) clearTimeout(landmarkTimer);
+      }
+
+      function togglePalette() {
+        cmdkOpen ? closePalette() : openPalette();
+      }
+
+      // assemble the grouped result set from the current query
+      function collectGroups() {
+        const q = cmdkInput.value.trim();
+        const groups = [];
+
+        // --- Cities ---
+        const cityItems = Object.entries(CITIES)
+          .filter(([, c]) => fuzzy(q, c.name))
+          .slice(0, q ? 6 : 12)
+          .map(([key, c]) => ({
+            icon: "◎",
+            label: c.name,
+            sub: "City",
+            run: () => {
+              closePalette();
+              switchCity(key);
+            },
+          }));
+        if (cityItems.length) groups.push({ label: "Cities", items: cityItems });
+
+        // --- Your spots ---
+        const spotItems = state.spots
+          .map((s, i) => ({ s, i }))
+          .filter(({ s, i }) => fuzzy(q, (s.title || "") + " " + s.comment + " spot " + (i + 1)))
+          .slice(0, 8)
+          .map(({ s, i }) => ({
+            num: i + 1,
+            label: s.title || "Spot " + (i + 1) + " · untitled",
+            sub: s.comment ? s.comment.slice(0, 60) : "Your spot",
+            run: () => {
+              closePalette();
+              openSpot(s.id, true);
+            },
+          }));
+        if (spotItems.length) groups.push({ label: "Your spots", items: spotItems });
+
+        // --- Landmarks (live) ---
+        const landmarkItems = landmarkResults.map((r) => ({
+          icon: "⚲",
+          label: r.label,
+          sub: r.sub,
+          run: () => {
+            closePalette();
+            map.flyTo([r.lat, r.lng], 16, { duration: 0.8 });
+            addSpot(r.lat, r.lng, r.label);
+          },
+        }));
+        groups.push({
+          label: "Landmarks",
+          loading: landmarkLoading,
+          hint: q.length < 2 ? "type to search places" : null,
+          items: landmarkItems,
+        });
+
+        return groups;
+      }
+
+      // render results; pass true to (re)trigger the live landmark fetch
+      function buildResults(scheduleFetch) {
+        renderResults(collectGroups());
+        if (scheduleFetch) {
+          const q = cmdkInput.value.trim();
+          if (q.length >= 2) scheduleLandmarks(q);
+        }
+      }
+
+      function renderResults(groups) {
+        cmdkList.innerHTML = "";
+        cmdkItems = [];
+
+        const hasAny =
+          groups.some((g) => g.items.length) || groups.some((g) => g.loading);
+        if (!hasAny) {
+          cmdkList.innerHTML = '<div class="cmdk-empty">No matches.</div>';
+          return;
+        }
+
+        groups.forEach((g) => {
+          if (!g.items.length && !g.loading && !g.hint) return;
+          const lbl = document.createElement("div");
+          lbl.className = "cmdk-group-label";
+          lbl.innerHTML =
+            escapeHTML(g.label) +
+            (g.loading ? '<span class="cmdk-spin"></span>' : "") +
+            (g.hint && !g.items.length ? ` · ${escapeHTML(g.hint)}` : "");
+          cmdkList.appendChild(lbl);
+
+          g.items.forEach((it) => {
+            const el = document.createElement("div");
+            el.className = "cmdk-item";
+            el.setAttribute("role", "option");
+            const idx = cmdkItems.length;
+            const iconHTML =
+              it.num != null
+                ? `<div class="cmdk-ic num">${it.num}</div>`
+                : `<div class="cmdk-ic">${it.icon || "›"}</div>`;
+            el.innerHTML = `
+              ${iconHTML}
+              <div class="cmdk-text">
+                <div class="cmdk-label">${escapeHTML(it.label)}</div>
+                ${it.sub ? `<div class="cmdk-sub">${escapeHTML(it.sub)}</div>` : ""}
+              </div>
+              <div class="cmdk-enter">↵</div>`;
+            el.addEventListener("click", () => it.run());
+            el.addEventListener("mousemove", () => setIndex(idx));
+            cmdkList.appendChild(el);
+            cmdkItems.push({ el, run: it.run });
+          });
+        });
+
+        if (cmdkIndex >= cmdkItems.length) cmdkIndex = 0;
+        highlight();
+      }
+
+      function setIndex(i) {
+        cmdkIndex = i;
+        highlight();
+      }
+
+      function highlight() {
+        cmdkItems.forEach((it, i) => {
+          const on = i === cmdkIndex;
+          it.el.setAttribute("aria-selected", on ? "true" : "false");
+          if (on) it.el.scrollIntoView({ block: "nearest" });
+        });
+      }
+
+      // live landmark search via OpenStreetMap Nominatim (no key needed)
+      function scheduleLandmarks(q) {
+        if (landmarkTimer) clearTimeout(landmarkTimer);
+        landmarkTimer = setTimeout(() => fetchLandmarks(q), 320);
+      }
+
+      function fetchLandmarks(q) {
+        const seq = ++landmarkSeq;
+        landmarkLoading = true;
+        buildResults(false);
+
+        const c = CITIES[state.city];
+        // bias results to the current city with a viewbox
+        const [lat, lng] = c.center;
+        const d = 0.6;
+        const vb = [lng - d, lat + d, lng + d, lat - d].join(",");
+        const url =
+          "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&addressdetails=1" +
+          "&accept-language=en&viewbox=" +
+          vb +
+          "&bounded=0&q=" +
+          encodeURIComponent(q);
+
+        fetch(url, { headers: { Accept: "application/json" } })
+          .then((r) => (r.ok ? r.json() : []))
+          .then((data) => {
+            if (seq !== landmarkSeq) return; // stale
+            landmarkResults = (data || []).map((d) => {
+              const parts = (d.display_name || "").split(",");
+              const label = (d.name && d.name.trim()) || parts[0] || "Place";
+              const sub = parts.slice(1, 3).join(",").trim() || d.type || "Landmark";
+              return { label, sub, lat: +d.lat, lng: +d.lon };
+            });
+            landmarkLoading = false;
+            if (cmdkOpen) buildResults(false);
+          })
+          .catch(() => {
+            if (seq !== landmarkSeq) return;
+            landmarkLoading = false;
+            landmarkResults = [];
+            if (cmdkOpen) buildResults(false);
+          });
+      }
+
+      // palette events
+      document.getElementById("open-cmdk").addEventListener("click", openPalette);
+      cmdk.querySelector("[data-close]").addEventListener("click", closePalette);
+
+      cmdkInput.addEventListener("input", () => {
+        cmdkIndex = 0;
+        buildResults(true);
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+          e.preventDefault();
+          togglePalette();
+          return;
+        }
+        if (!cmdkOpen) return;
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closePalette();
+        } else if (e.key === "ArrowDown") {
+          e.preventDefault();
+          if (cmdkItems.length) setIndex((cmdkIndex + 1) % cmdkItems.length);
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          if (cmdkItems.length)
+            setIndex((cmdkIndex - 1 + cmdkItems.length) % cmdkItems.length);
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          const it = cmdkItems[cmdkIndex];
+          if (it) it.run();
+        }
+      });
+
+      // ----- editable route title + description -----
+      const titleEl = document.getElementById("route-title");
+      const descEl = document.getElementById("route-desc");
+      titleEl.textContent = state.title || "";
+      descEl.textContent = state.desc || "";
+
+      titleEl.addEventListener("input", () => {
+        state.title = titleEl.textContent.trim();
+        save();
+      });
+      descEl.addEventListener("input", () => {
+        state.desc = descEl.textContent.trim();
+        save();
+      });
+      // Enter in the title shouldn't create newlines — move focus on
+      titleEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          descEl.focus();
+        }
+      });
+
+      // ----- save the map as an image -----
+      function slugify(str) {
+        return (
+          (str || "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "")
+            .slice(0, 50) || "journey"
+        );
+      }
+
+      // frame all spots in view so the export captures the whole route, not
+      // just the current viewport
+      function fitAllSpots() {
+        const pts = state.spots.map((s) => [s.lat, s.lng]);
+        if (pts.length === 1) {
+          map.setView(pts[0], 15);
+        } else if (pts.length > 1) {
+          map.fitBounds(L.latLngBounds(pts), { padding: [80, 80], maxZoom: 16 });
+        }
+      }
+
+      // resolve once the map has stopped moving and tiles have had time to load
+      function whenMapSettled() {
+        return new Promise((resolve) => {
+          let done = false;
+          const finish = () => {
+            if (done) return;
+            done = true;
+            resolve();
+          };
+          map.once("moveend", () => setTimeout(finish, 750));
+          setTimeout(finish, 1600);
+        });
+      }
+
+      function wrapText(ctx, text, maxWidth) {
+        const words = text.split(/\s+/);
+        const lines = [];
+        let line = "";
+        for (const w of words) {
+          const test = line ? line + " " + w : w;
+          if (ctx.measureText(test).width > maxWidth && line) {
+            lines.push(line);
+            line = w;
+          } else {
+            line = test;
+          }
+        }
+        if (line) lines.push(line);
+        return lines;
+      }
+
+      const SCALE = 2; // matches html2canvas scale
+
+      // force the canvas fonts (incl. the Caveat wordmark) to load before drawing
+      function ensureFonts() {
+        if (!document.fonts || !document.fonts.load) return Promise.resolve();
+        return Promise.all([
+          document.fonts.load("700 54px Caveat"),
+          document.fonts.load("500 34px Newsreader"),
+          document.fonts.load("600 16px Inter"),
+        ])
+          .then(() => document.fonts.ready)
+          .catch(() => {});
+      }
+
+      function circlePath(ctx, x, y, r) {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+      }
+
+      // seamless red/blue diagonal airmail stripes as a repeating pattern
+      function airmailPattern(ctx, s) {
+        const T = Math.round(14 * s);
+        const tile = document.createElement("canvas");
+        tile.width = T;
+        tile.height = T;
+        const c = tile.getContext("2d");
+        c.lineWidth = T * 0.3;
+        c.lineCap = "square";
+        const band = (color, shift) => {
+          c.strokeStyle = color;
+          for (let k = -1; k <= 1; k++) {
+            c.beginPath();
+            c.moveTo(shift + k * T, T);
+            c.lineTo(T + shift + k * T, 0);
+            c.stroke();
+          }
+        };
+        band("#c0392b", 0);
+        band("#27497a", T / 2);
+        return ctx.createPattern(tile, "repeat");
+      }
+
+      function roundRectPath(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      }
+
+      function diamond(ctx, x, y, r) {
+        ctx.beginPath();
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x + r, y);
+        ctx.lineTo(x, y + r);
+        ctx.lineTo(x - r, y);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // --- postcard border styles (one is picked at random per export) ---
+      function drawBorderAirmail(ctx, W, H, margin, s) {
+        const pattern = airmailPattern(ctx, s);
+        const inset = margin * 0.24;
+        const bt = margin * 0.34;
+        ctx.save();
+        ctx.fillStyle = pattern;
+        const w = W - inset * 2;
+        const h = H - inset * 2;
+        ctx.fillRect(inset, inset, w, bt);
+        ctx.fillRect(inset, H - inset - bt, w, bt);
+        ctx.fillRect(inset, inset, bt, h);
+        ctx.fillRect(W - inset - bt, inset, bt, h);
+        ctx.restore();
+      }
+
+      function drawBorderRule(ctx, W, H, margin, s, tpl) {
+        const i1 = margin * 0.3;
+        const i2 = margin * 0.44;
+        ctx.save();
+        ctx.strokeStyle = tpl.accent;
+        ctx.lineWidth = 1.8 * s;
+        ctx.strokeRect(i1, i1, W - 2 * i1, H - 2 * i1);
+        ctx.lineWidth = 1 * s;
+        ctx.strokeRect(i2, i2, W - 2 * i2, H - 2 * i2);
+        ctx.fillStyle = tpl.accent;
+        [[i1, i1], [W - i1, i1], [i1, H - i1], [W - i1, H - i1]].forEach(
+          ([x, y]) => diamond(ctx, x, y, 5.5 * s)
+        );
+        ctx.restore();
+      }
+
+      function drawBorderTicket(ctx, W, H, margin, s, tpl) {
+        const i = margin * 0.34;
+        ctx.save();
+        ctx.strokeStyle = tpl.accent;
+        ctx.lineWidth = 2 * s;
+        ctx.setLineDash([11 * s, 7 * s]);
+        roundRectPath(ctx, i, i, W - 2 * i, H - 2 * i, margin * 0.5);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+
+      function drawBorderDots(ctx, W, H, margin, s, tpl) {
+        const i = margin * 0.4;
+        const r = margin * 0.075;
+        const gap = margin * 0.36;
+        ctx.save();
+        ctx.fillStyle = tpl.accent;
+        const dot = (x, y) => {
+          circlePath(ctx, x, y, r);
+          ctx.fill();
+        };
+        for (let x = i; x <= W - i + 1; x += gap) {
+          dot(x, i);
+          dot(x, H - i);
+        }
+        for (let y = i; y <= H - i + 1; y += gap) {
+          dot(i, y);
+          dot(W - i, y);
+        }
+        ctx.restore();
+      }
+
+      function drawBorderDeco(ctx, W, H, margin, s, tpl) {
+        const i = margin * 0.36;
+        const len = margin * 0.85;
+        const k = margin * 0.16;
+        ctx.save();
+        ctx.strokeStyle = tpl.accent;
+        ctx.lineWidth = 1.3 * s;
+        ctx.strokeRect(i, i, W - 2 * i, H - 2 * i);
+        ctx.lineWidth = 3 * s;
+        ctx.lineCap = "square";
+        const bracket = (x, y, dx, dy) => {
+          ctx.beginPath();
+          ctx.moveTo(x, y + dy * len);
+          ctx.lineTo(x, y);
+          ctx.lineTo(x + dx * len, y);
+          ctx.stroke();
+        };
+        bracket(i + k, i + k, 1, 1);
+        bracket(W - i - k, i + k, -1, 1);
+        bracket(i + k, H - i - k, 1, -1);
+        bracket(W - i - k, H - i - k, -1, -1);
+        ctx.restore();
+      }
+
+      const TEMPLATES = [
+        { id: "airmail", paper: "#fbfaf7", accent: "#c0392b", border: drawBorderAirmail },
+        { id: "ivory", paper: "#fcf6e9", accent: "#1a1a1a", border: drawBorderRule },
+        { id: "harbor", paper: "#e8eef1", accent: "#21506b", border: drawBorderTicket },
+        { id: "kraft", paper: "#ecdfc6", accent: "#9c531f", border: drawBorderDots },
+        { id: "sage", paper: "#e7ede4", accent: "#2f5d50", border: drawBorderDeco },
+      ];
+
+      // four-point compass star, centered at origin
+      function drawCompass(ctx, r) {
+        const t = r * 0.2;
+        ctx.beginPath();
+        ctx.moveTo(0, -r);
+        ctx.lineTo(t, -t);
+        ctx.lineTo(r, 0);
+        ctx.lineTo(t, t);
+        ctx.lineTo(0, r);
+        ctx.lineTo(-t, t);
+        ctx.lineTo(-r, 0);
+        ctx.lineTo(-t, -t);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // a postage stamp (perforated edge, compass + label) rotated slightly
+      function drawStamp(ctx, cx, cy, w, h, rot, s, n, tpl) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(rot);
+        const per = Math.max(4 * s, w * 0.055);
+        ctx.fillStyle = "#fdfcf8";
+        ctx.fillRect(-w / 2, -h / 2, w, h);
+        ctx.fillStyle = tpl.paper;
+        const stepX = w / Math.round(w / (per * 1.7));
+        const stepY = h / Math.round(h / (per * 1.7));
+        for (let x = -w / 2; x <= w / 2 + 1; x += stepX) {
+          circlePath(ctx, x, -h / 2, per);
+          ctx.fill();
+          circlePath(ctx, x, h / 2, per);
+          ctx.fill();
+        }
+        for (let y = -h / 2; y <= h / 2 + 1; y += stepY) {
+          circlePath(ctx, -w / 2, y, per);
+          ctx.fill();
+          circlePath(ctx, w / 2, y, per);
+          ctx.fill();
+        }
+        const pad = per * 1.35;
+        ctx.fillStyle = "#f1efe9";
+        ctx.fillRect(-w / 2 + pad, -h / 2 + pad, w - 2 * pad, h - 2 * pad);
+        ctx.strokeStyle = tpl.accent;
+        ctx.lineWidth = 1.4 * s;
+        ctx.strokeRect(-w / 2 + pad, -h / 2 + pad, w - 2 * pad, h - 2 * pad);
+        ctx.fillStyle = tpl.accent;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `600 ${h * 0.1}px Inter, sans-serif`;
+        if ("letterSpacing" in ctx) ctx.letterSpacing = `${1 * s}px`;
+        ctx.fillText("PAR AVION", 0, -h * 0.28);
+        if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+        drawCompass(ctx, h * 0.2);
+        ctx.font = `600 ${h * 0.13}px Inter, sans-serif`;
+        ctx.fillText(n + (n === 1 ? " STOP" : " STOPS"), 0, h * 0.3);
+        ctx.restore();
+      }
+
+      function archText(ctx, text, radius, top, font) {
+        ctx.save();
+        ctx.font = font;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const widths = [...text].map((ch) => ctx.measureText(ch).width);
+        const totalAng = widths.reduce((a, b) => a + b, 0) / radius;
+        let a = -totalAng / 2;
+        for (let i = 0; i < text.length; i++) {
+          const wa = widths[i] / radius;
+          a += wa / 2;
+          const ang = top ? -Math.PI / 2 + a : Math.PI / 2 - a;
+          ctx.save();
+          ctx.translate(radius * Math.cos(ang), radius * Math.sin(ang));
+          ctx.rotate(top ? ang + Math.PI / 2 : ang - Math.PI / 2);
+          ctx.fillText(text[i], 0, 0);
+          ctx.restore();
+          a += wa / 2;
+        }
+        ctx.restore();
+      }
+
+      // circular postmark / cancellation that overlaps the stamp
+      function drawPostmark(ctx, cx, cy, r, s, cityName, tpl) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.globalAlpha = 0.62;
+        ctx.strokeStyle = tpl.accent;
+        ctx.fillStyle = tpl.accent;
+        ctx.lineWidth = 2 * s;
+        circlePath(ctx, 0, 0, r);
+        ctx.stroke();
+        circlePath(ctx, 0, 0, r * 0.64);
+        ctx.stroke();
+        archText(ctx, cityName.toUpperCase(), r * 0.82, true, `600 ${r * 0.2}px Inter, sans-serif`);
+        archText(ctx, "JOURNEY", r * 0.82, false, `600 ${r * 0.2}px Inter, sans-serif`);
+        const now = new Date();
+        const mon = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"][now.getMonth()];
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `600 ${r * 0.24}px Inter, sans-serif`;
+        ctx.fillText(mon + " " + String(now.getFullYear()).slice(2), 0, 0);
+        ctx.lineWidth = 2.4 * s;
+        for (let k = 0; k < 5; k++) {
+          const yy = -r * 0.5 + k * (r * 0.25);
+          ctx.beginPath();
+          ctx.moveTo(-r * 1.1, yy);
+          ctx.lineTo(-r * 2.5, yy);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawCardText(ctx, x, y, W, s) {
+        ctx.save();
+        ctx.textBaseline = "top";
+        ctx.shadowColor = "rgba(252, 252, 251, 0.95)";
+        ctx.shadowBlur = 9 * s;
+        let cy = y;
+        const maxW = W * 0.6; // keep clear of the stamp at top-right
+        const title = (state.title || "").trim() || "Untitled journey";
+        ctx.font = `500 ${34 * s}px Newsreader, Georgia, serif`;
+        ctx.fillStyle = "#1a1a1a";
+        wrapText(ctx, title, maxW)
+          .slice(0, 2)
+          .forEach((ln) => {
+            ctx.fillText(ln, x, cy);
+            cy += 42 * s;
+          });
+        cy += 4 * s;
+        const desc = (state.desc || "").trim();
+        if (desc) {
+          ctx.font = `400 ${16 * s}px Inter, system-ui, sans-serif`;
+          ctx.fillStyle = "#55524c";
+          wrapText(ctx, desc, maxW)
+            .slice(0, 3)
+            .forEach((ln) => {
+              ctx.fillText(ln, x, cy);
+              cy += 23 * s;
+            });
+        }
+        ctx.restore();
+      }
+
+      // script "Greetings from <City>" signature, bottom-left
+      function drawWordmark(ctx, x, baseY, s, cityName, tpl) {
+        ctx.save();
+        ctx.shadowColor = "rgba(252, 252, 251, 0.95)";
+        ctx.shadowBlur = 11 * s;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillStyle = tpl.accent;
+        ctx.font = `500 ${15 * s}px Inter, system-ui, sans-serif`;
+        if ("letterSpacing" in ctx) ctx.letterSpacing = `${3 * s}px`;
+        ctx.fillText("GREETINGS FROM", x, baseY - 50 * s);
+        if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+        ctx.fillStyle = "#1a1a1a";
+        ctx.font = `700 ${54 * s}px Caveat, "Newsreader", cursive`;
+        ctx.fillText(cityName, x, baseY);
+        ctx.restore();
+      }
+
+      let lastTplId = null;
+      function pickTemplate() {
+        const choices = TEMPLATES.filter((t) => t.id !== lastTplId);
+        const tpl = choices[Math.floor(Math.random() * choices.length)];
+        lastTplId = tpl.id;
+        return tpl;
+      }
+
+      function loadImage(src) {
+        return new Promise((res) => {
+          const im = new Image();
+          im.onload = () => res(im);
+          im.onerror = () => res(null);
+          im.src = src;
+        });
+      }
+
+      // subtle hue shift per leg so each segment between spots reads differently
+      function routeSegColor(i, total) {
+        const hue = 198 + (total <= 1 ? 0 : (i / total) * 90);
+        return `hsla(${hue}, 48%, 46%, 0.78)`;
+      }
+
+      function drawRoute(ctx, pts, s) {
+        if (pts.length < 2) return;
+        ctx.save();
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "rgba(255,255,255,0.92)";
+        ctx.lineWidth = 9 * s;
+        ctx.beginPath();
+        pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+        ctx.stroke();
+        for (let i = 0; i < pts.length - 1; i++) {
+          ctx.strokeStyle = routeSegColor(i, pts.length - 1);
+          ctx.lineWidth = 5 * s;
+          ctx.beginPath();
+          ctx.moveTo(pts[i].x, pts[i].y);
+          ctx.lineTo(pts[i + 1].x, pts[i + 1].y);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawBadge(ctx, x, y, i, s) {
+        const r = 14 * s;
+        ctx.save();
+        ctx.fillStyle = "#1a1a1a";
+        circlePath(ctx, x, y, r);
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2.4 * s;
+        circlePath(ctx, x, y, r);
+        ctx.stroke();
+        ctx.fillStyle = "#fff";
+        ctx.font = `600 ${r}px Inter, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(i + 1), x, y + 0.5 * s);
+        ctx.restore();
+      }
+
+      // a single handwritten "Title. Comment" caption under the photo
+      function drawCaption(ctx, spot, cx, topY, width, s) {
+        const title = (spot.title || "").trim();
+        const comment = (spot.comment || "").trim();
+        const parts = [];
+        if (title) parts.push(title);
+        if (comment) parts.push(comment);
+        if (!parts.length) return;
+        const caption = parts.join(". ");
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.shadowColor = "rgba(255,255,255,0.95)";
+        ctx.shadowBlur = 7 * s;
+        ctx.fillStyle = "#1a1a1a";
+        ctx.font = `600 ${27 * s}px Caveat, "Newsreader", cursive`;
+        let y = topY + 8 * s;
+        wrapText(ctx, caption, Math.max(width * 1.25, 180 * s))
+          .slice(0, 3)
+          .forEach((ln) => {
+            ctx.fillText(ln, cx, y);
+            y += 27 * s;
+          });
+        ctx.restore();
+      }
+
+      function drawSpotMarker(ctx, x, y, spot, i, s, img, base) {
+        if (img) {
+          const ir = img.width / img.height || 1;
+          let w = base;
+          let h = base;
+          if (ir >= 1) h = base / ir;
+          else w = base * ir;
+          const fr = Math.max(3 * s, base * 0.05);
+          const cw = w + fr * 2;
+          const ch = h + fr * 2;
+          const left = x - cw / 2;
+          const top = y - ch / 2;
+          ctx.save();
+          ctx.shadowColor = "rgba(0,0,0,0.3)";
+          ctx.shadowBlur = 11 * s;
+          ctx.shadowOffsetY = 3 * s;
+          ctx.fillStyle = "#fff";
+          roundRectPath(ctx, left, top, cw, ch, fr * 1.5);
+          ctx.fill();
+          ctx.restore();
+          ctx.save();
+          roundRectPath(ctx, left + fr, top + fr, w, h, fr);
+          ctx.clip();
+          ctx.drawImage(img, left + fr, top + fr, w, h);
+          ctx.restore();
+          drawBadge(ctx, left + fr * 1.5, top + fr * 1.5, i, s);
+          drawCaption(ctx, spot, x, top + ch, w, s);
+        } else {
+          const r = 16 * s;
+          ctx.save();
+          ctx.shadowColor = "rgba(0,0,0,0.32)";
+          ctx.shadowBlur = 7 * s;
+          ctx.fillStyle = "#1a1a1a";
+          circlePath(ctx, x, y, r);
+          ctx.fill();
+          ctx.restore();
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = 2.6 * s;
+          circlePath(ctx, x, y, r);
+          ctx.stroke();
+          ctx.fillStyle = "#fff";
+          ctx.font = `600 ${r}px Inter, sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(String(i + 1), x, y + 0.5 * s);
+          drawCaption(ctx, spot, x, y + r, r * 2, s);
+        }
+      }
+
+      // compose the captured base map into a framed postcard
+      function buildPostcard(mapCanvas, tpl, points, imgs) {
+        const s = SCALE;
+        const mw = mapCanvas.width;
+        const mh = mapCanvas.height;
+        const margin = Math.round(Math.min(mw, mh) * 0.05);
+        const out = document.createElement("canvas");
+        out.width = mw + margin * 2;
+        out.height = mh + margin * 2;
+        const ctx = out.getContext("2d");
+        const W = out.width;
+        const H = out.height;
+        const mx = margin;
+        const my = margin;
+
+        ctx.fillStyle = tpl.paper;
+        ctx.fillRect(0, 0, W, H);
+
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0,0.18)";
+        ctx.shadowBlur = 10 * s;
+        ctx.shadowOffsetY = 3 * s;
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(mx, my, mw, mh);
+        ctx.restore();
+        ctx.drawImage(mapCanvas, mx, my, mw, mh);
+        ctx.strokeStyle = "rgba(26,26,26,0.25)";
+        ctx.lineWidth = s;
+        ctx.strokeRect(mx + 0.5, my + 0.5, mw - 1, mh - 1);
+
+        tpl.border(ctx, W, H, margin, s, tpl);
+
+        // route + spots, drawn by us at projected positions, clipped to the map
+        const pts = points.map((p) => ({ x: mx + p.x, y: my + p.y, spot: p.spot }));
+        const base = Math.min(mw, mh) * 0.224;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(mx, my, mw, mh);
+        ctx.clip();
+        drawRoute(ctx, pts, s);
+        pts.forEach((p, i) =>
+          drawSpotMarker(ctx, p.x, p.y, p.spot, i, s, imgs[p.spot.id], base)
+        );
+
+        const city = (CITIES[state.city] && CITIES[state.city].name) || "";
+        drawCardText(ctx, mx + margin * 0.7, my + margin * 0.7, mw, s);
+        drawWordmark(ctx, mx + margin * 0.7, my + mh - margin * 0.8, s, city, tpl);
+        const stampW = mw * 0.12;
+        const stampH = stampW * 1.28;
+        const scx = mx + mw - margin * 0.9 - stampW / 2;
+        const scy = my + margin * 0.9 + stampH / 2;
+        drawStamp(ctx, scx, scy, stampW, stampH, 0.04, s, state.spots.length, tpl);
+        drawPostmark(ctx, scx - stampW * 0.5, scy + stampH * 0.5, stampW * 0.6, s, city, tpl);
+        ctx.restore();
+
+        return out;
+      }
+
+      async function saveImage() {
+        if (!state.spots.length || typeof html2canvas === "undefined") return;
+        const mapEl = document.getElementById("map");
+        const btn = document.getElementById("save-img");
+        btn.disabled = true;
+        const prevCenter = map.getCenter();
+        const prevZoom = map.getZoom();
+        map.closePopup();
+        const tpl = pickTemplate();
+        mapEl.classList.add("capturing");
+        try {
+          const imgs = {};
+          await Promise.all(
+            state.spots
+              .filter((sp) => sp.photo)
+              .map(async (sp) => {
+                imgs[sp.id] = await loadImage(sp.photo);
+              })
+          );
+          fitAllSpots();
+          await whenMapSettled();
+          await ensureFonts();
+          const mapCanvas = await html2canvas(mapEl, {
+            useCORS: true,
+            backgroundColor: tpl.paper,
+            scale: SCALE,
+            logging: false,
+          });
+          const sf = mapCanvas.width / map.getSize().x;
+          const points = state.spots.map((sp) => {
+            const p = map.latLngToContainerPoint([sp.lat, sp.lng]);
+            return { x: p.x * sf, y: p.y * sf, spot: sp };
+          });
+          const postcard = buildPostcard(mapCanvas, tpl, points, imgs);
+          const a = document.createElement("a");
+          a.download = slugify(state.title) + "-" + tpl.id + ".png";
+          a.href = postcard.toDataURL("image/png");
+          a.click();
+        } catch (err) {
+          console.error(err);
+          alert(
+            "Couldn't export the map. This usually means the browser blocked the map tiles from being copied to an image.\n\nTip: serve the folder locally instead of opening the file directly —\n  cd " +
+              "~/code/journey-map && python3 -m http.server\nthen open http://localhost:8000"
+          );
+        } finally {
+          mapEl.classList.remove("capturing");
+          map.setView(prevCenter, prevZoom);
+          btn.disabled = state.spots.length === 0;
+        }
+      }
+
+      document.getElementById("save-img").addEventListener("click", saveImage);
+
+      // ----- boot -----
+      goToCity(state.city, false);
+      render();
+    </script>
+  </body>
+</html>
