@@ -1,29 +1,37 @@
-# Journey — a journal map
+# Journey — a map of places I love
 
-A single-file web app for turning a walk through a city into a keepsake. Pick a
-city, drop numbered spots on the map, give each one a title, a photo, and a note,
-and export the whole route as a postcard.
+A curated, city-by-city map of my favourite spots and who recommended them.
+Visitors browse; I edit.
 
-- **One static HTML file**, no build step — open `index.html` in a browser.
-- Leaflet + CARTO light tiles; Newsreader + Inter, with a Caveat handwritten hand
-  for captions and the city wordmark.
-- ⌘K command palette searches cities, your spots, and live landmarks (Nominatim).
-- Walking route between spots via FOSSGIS OSRM (foot), with a straight-line
-  fallback.
-- Drag spots on the map or reorder them in the sidebar; long-press a marker to
-  delete it.
-- **Save image** composes a framed postcard — a random border template (airmail,
-  ivory, harbor, kraft, sage), a postage stamp + postmark, the route drawn with a
-  subtle per-leg color shift, photo thumbnails sized to each image, and a
-  handwritten `Title. Comment` caption per spot.
+- Pick a city or region, filter by category, tap a pin. Every view is a shareable URL
+  (`?city=barcelona&cat=coffee&pin=bar-canete`, `?by=Anna`).
+- ⌘K searches spots, people and cities. "i'm feeling lucky" picks one at random.
+- Returning visitors get a "N new spots since you were last here" toast.
+- Mobile: the map is full screen with a draggable bottom sheet (peek / half / full).
 
-State lives in `localStorage`. Nominatim and OSRM are public, rate-limited
-services — fine for personal use.
+## Editing
 
-To export cleanly (so the browser doesn't block the map tiles from the canvas),
-serve the folder rather than opening the file directly:
+The published guide is [`src/guide.json`](src/guide.json). To change it:
+
+1. Open the app with `?edit` (locally or on the live site — it only touches your browser).
+2. Tap the map to drop a pin, or ⌘K a place name to pin it from OpenStreetMap or add it
+   as a new city/region. Drag pins to move them; edit/delete from the spot's detail.
+   Or paste a full Google Maps place link anywhere on the page (or into ⌘K) to pin it.
+3. Tap a recommender, then **edit profile** to add their link, photo and a one-liner.
+   Instagram, X and GitHub links fill in the photo automatically (via unavatar.io).
+4. **copy json** / **download**, replace `src/guide.json`, commit, push.
+
+The draft lives in `localStorage` until you **reset** it.
+
+## Dev
 
 ```
-python3 -m http.server
-# then open http://localhost:8000
+npm install
+npm run dev     # http://localhost:5173
+npm test        # filter / URL / helper tests
+npm run build   # static site in dist/, relative paths so it works under any subpath
 ```
+
+Stack: React + Vite, MapLibre with [OpenFreeMap](https://openfreemap.org) tiles (free, no key), and libraries from
+[Emil Kowalski's picks](https://github.com/emilkowalski/skills): base-ui (select, dialog,
+drawer), cmdk, Sonner, zustand, clsx.
